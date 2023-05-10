@@ -2,7 +2,7 @@
   <div class="counter">
     <button @click="decrement">-</button>
 
-    <span> Current value: {{ count }} </span>
+    <span>Current value: {{ count }} </span>
 
     <button @click="increment">+</button>
   </div>
