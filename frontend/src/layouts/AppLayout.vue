@@ -9,6 +9,7 @@
             />
             <slot/>
         </div>
+    </div>
 </template>
 
 <script setup>
