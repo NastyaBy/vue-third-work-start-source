@@ -1,11 +1,13 @@
 <template>
   <main class="content">
     <section class="desk">
-      <!--Шапка доски-->
+      <!--      Отображение дочерних маршрутов-->
+      <router-view />
+      <!--      Шапка доски-->
       <div class="desk__header">
         <h1 class="desk__title">Design Coffee Lab</h1>
         <!--        Добавили кнопку для добавления новой колонки-->
-        <button class="desk__add" type="button" @click="addColumn">
+        <button class="desk__add" type="button" @click="columnsStore.addColumn">
           Добавить столбец
         </button>
         <div class="desk__filters">
@@ -13,13 +15,17 @@
             <!--            Список пользователей-->
             <ul class="user-filter">
               <li
-                v-for="user in users"
+                v-for="user in usersStore.users"
                 :key="user.id"
                 :title="user.name"
                 class="user-filter__item"
-                :class="{ active: filters.users.some((id) => id === user.id) }"
+                :class="{
+                  active: filtersStore.filters.users.some(
+                    (id) => id === user.id
+                  ),
+                }"
                 @click="
-                  $emit('applyFilters', { item: user.id, entity: 'users' })
+                  filtersStore.applyFilters({ item: user.id, entity: 'users' })
                 "
               >
                 <a class="user-filter__button">
@@ -40,9 +46,13 @@
                 v-for="{ value, label } in STATUSES"
                 :key="value"
                 class="meta-filter__item"
-                :class="{ active: filters.statuses.some((s) => s === value) }"
+                :class="{
+                  active: filtersStore.filters.statuses.some(
+                    (s) => s === value
+                  ),
+                }"
                 @click="
-                  $emit('applyFilters', { item: value, entity: 'statuses' })
+                  filtersStore.applyFilters({ item: value, entity: 'statuses' })
                 "
               >
                 <a
@@ -55,26 +65,34 @@
           </div>
         </div>
       </div>
-
-      <!--Колонки и задачи-->
-      <div class="desk__columns" v-if="columns.length">
+      <!--      Колонки и задачи-->
+      <div v-if="columnsStore.columns.length" class="desk__columns">
         <!--        Показываем колонки-->
         <desk-column
-          v-for="column in state.columns"
+          v-for="column in columnsStore.columns"
           :key="column.id"
           :column="column"
-          :tasks="props.tasks"
-          @update="updateColumn"
-          @delete="deleteColumn"
-          @update-tasks="$emit('updateTasks', $event)"
+          @update="columnsStore.updateColumn"
+          @delete="columnsStore.deleteColumn"
         />
       </div>
-
-      <!--Пустая доска-->
-      <p class="desk__emptiness" v-else>Пока нет ни одной колонки</p>
+      <!--      Пустая доска-->
+      <p v-else class="desk__emptiness">Пока нет ни одной колонки</p>
     </section>
   </main>
 </template>
+
+<script setup>
+import { STATUSES } from "../common/constants";
+import DeskColumn from "@/modules/columns/components/DeskColumn.vue";
+import { getImage } from "../common/helpers";
+import { useUsersStore, useColumnsStore, useFiltersStore } from "@/stores";
+
+// Определяем хранилища
+const usersStore = useUsersStore();
+const columnsStore = useColumnsStore();
+const filtersStore = useFiltersStore();
+</script>
 
 <style lang="scss" scoped>
 @import "@/assets/scss/app.scss";
@@ -119,8 +137,6 @@
   }
 
   &__add {
-    @include m-s10-h12;
-
     position: relative;
 
     margin: 0;
@@ -316,65 +332,3 @@
   background-color: transparent;
 }
 </style>
-
-<script setup>
-import { reactive } from "vue";
-import columns from "../mocks/columns.json";
-import users from "../mocks/users.json";
-import { STATUSES } from "../common/constants";
-import rawTasks from "../mocks/tasks.json";
-import DeskColumn from "@/modules/columns/components/DeskColumn.vue";
-import { normalizeTask, getTagsArrayFromString } from "../common/helpers";
-import { getImage } from "../common/helpers";
-import { uniqueId } from "lodash";
-
-const props = defineProps({
-  tasks: {
-    type: Array,
-    required: true,
-  },
-  filters: {
-    type: Object,
-    required: true,
-  },
-});
-
-defineEmits(["applyFilters", "updateTasks"]);
-
-const state = reactive({ columns });
-
-function addColumn() {
-  state.columns.push({ id: uniqueId("column_"), title: "Новый столбец" });
-}
-
-function updateColumn(column) {
-  const index = state.columns.findIndex(({ id }) => id === column.id);
-  if (~index) {
-    state.columns.splice(index, 1, column);
-  }
-}
-
-function deleteColumn(id) {
-  state.columns = state.columns.filter((column) => column.id !== id);
-}
-
-const normalizedTasks = rawTasks.map((task) => normalizeTask(task));
-
-const columnTasks = normalizedTasks
-  // Фильтруем задачи, которые прикреплены к колонке
-  .filter(({ columnId }) => columnId)
-  .reduce((accumulator, task) => {
-    task.tags = getTagsArrayFromString(task.tags);
-    if (accumulator[task.columnId]) {
-      accumulator[task.columnId] = [...accumulator[task.columnId], task];
-    } else {
-      accumulator[task.columnId] = [task];
-    }
-    return accumulator;
-  }, {});
-
-const getImage = (image) => {
-  // https://vitejs.dev/guide/assets.html#new-url-url-import-meta-url
-  return new URL(`../assets/img/${image}`, import.meta.url).href;
-};
-</script>
